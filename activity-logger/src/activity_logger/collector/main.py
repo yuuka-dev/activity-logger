@@ -9,7 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from activity_logger.collector.poller import get_foreground_window_info, get_idle_seconds
-from activity_logger.collector.session import Session
+from activity_logger.collector.session import Session, SessionState
 from activity_logger.config import AppConfig
 from activity_logger.storage.database import Database, SessionRecord
 
@@ -18,26 +18,36 @@ logger = logging.getLogger(__name__)
 
 
 class Collector:
-    """前面ウィンドウを定期ポーリングしてセッションを記録する."""
+    """前面ウィンドウを定期ポーリングしてセッションを記録する．
+
+    セッションはアプリ（exe:pid）ごとに保持し，
+    非前面が閾値秒数を超えたときに初めて DB に書き出して閉じる．
+    """
 
     def __init__(self, config: AppConfig) -> None:
         self._config = config
         self._db = Database(config.resolve_db_path())
-        self._current: Session | None = None
+        self._sessions: dict[str, Session] = {}
+        self._prev_fg_key: str | None = None
         self._running = False
+
+    @staticmethod
+    def _key(exe: str, pid: int) -> str:
+        return f"{exe}:{pid}"
 
     def _is_excluded(self, exe: str) -> bool:
         return exe in self._config.filter.excluded_executables
 
     def _flush_session(self, session: Session) -> None:
         """セッションを DB に書き出す."""
-        session.close()
+        now = datetime.now(JST)
+        session.close(now=now)
         rec = SessionRecord(
             id=session.db_id,
             executable=session.executable,
             window_title=session.window_title,
             started_at=session.started_at,
-            ended_at=datetime.now(JST),
+            ended_at=now,
             active_seconds=session.active_seconds,
             idle_seconds=session.idle_seconds,
             pid=session.pid,
@@ -53,30 +63,47 @@ class Collector:
         info = get_foreground_window_info()
         idle_sec = get_idle_seconds()
         is_idle = idle_sec >= self._config.idle.threshold_sec
+        now = datetime.now(JST)
 
-        if info is None or self._is_excluded(info.executable):
-            # ウィンドウなし or 除外アプリ → 現セッションをアイドル扱い
-            if self._current:
-                self._current.tick(is_idle=True)
-            return
+        fg_key: str | None = None
 
-        # アプリ切替を検出
-        if self._current and (
-            self._current.executable != info.executable or self._current.pid != info.pid
-        ):
-            self._flush_session(self._current)
-            self._current = None
+        if info and not self._is_excluded(info.executable):
+            fg_key = self._key(info.executable, info.pid)
 
-        if self._current is None:
-            self._current = Session(
-                executable=info.executable,
-                window_title=info.window_title,
-                pid=info.pid,
-            )
-        else:
-            # ウィンドウタイトルは随時更新（タブ切替等）
-            self._current.window_title = info.window_title
-            self._current.tick(is_idle=is_idle)
+            # 新規 or 復帰
+            if fg_key not in self._sessions:
+                self._sessions[fg_key] = Session(
+                    executable=info.executable,
+                    window_title=info.window_title,
+                    pid=info.pid,
+                )
+            else:
+                session = self._sessions[fg_key]
+                # バックグラウンドから復帰 → 背景時間をスキップ
+                if session.state == SessionState.BACKGROUND:
+                    session.resume(now=now)
+
+            session = self._sessions[fg_key]
+            session.window_title = info.window_title
+            session.tick(is_idle=is_idle, now=now)
+
+        # 前面から離れたセッションを BACKGROUND にする
+        if fg_key != self._prev_fg_key and self._prev_fg_key in self._sessions:
+            prev = self._sessions[self._prev_fg_key]
+            if prev.state != SessionState.CLOSED:
+                prev.to_background(now=now)
+
+        self._prev_fg_key = fg_key
+
+        # 閾値超過のバックグラウンドセッションを閉じる
+        threshold = self._config.idle.threshold_sec
+        for key in list(self._sessions):
+            if key == fg_key:
+                continue
+            session = self._sessions[key]
+            if session.seconds_since_last_tick(now=now) >= threshold:
+                self._flush_session(session)
+                del self._sessions[key]
 
     def run(self) -> None:
         """メインループ．SIGINT / SIGTERM で停止する."""
@@ -94,8 +121,8 @@ class Collector:
                     logger.exception("ポーリング中にエラー発生")
                 time.sleep(interval)
         finally:
-            if self._current:
-                self._flush_session(self._current)
+            for session in self._sessions.values():
+                self._flush_session(session)
             self._db.close()
             logger.info("コレクター停止")
 
