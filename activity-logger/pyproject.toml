@@ -1,7 +1,7 @@
 [project]
 name = "activity-logger"
 version = "0.1.0"
-description = "Add your description here"
+description = "閾値フィルタ付き Windows アクティビティロガー"
 readme = "README.md"
 authors = [
     { name = "Proletariat Yuuka", email = "sounyan.is.the.angel@gmail.com" }
@@ -15,7 +15,8 @@ dependencies = [
 ]
 
 [project.scripts]
-activity-logger = "activity_logger:main"
+activity-logger = "activity_logger.cli.main:app"
+activity-collector = "activity_logger.collector.main:run"
 
 [build-system]
 requires = ["uv_build>=0.11.6,<0.12.0"]

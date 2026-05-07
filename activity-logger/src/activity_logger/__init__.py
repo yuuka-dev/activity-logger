@@ -1,2 +1,3 @@
-def main() -> None:
-    print("Hello from activity-logger!")
+"""閾値フィルタ付き Windows アクティビティロガー."""
+
+__version__ = "0.1.0"
