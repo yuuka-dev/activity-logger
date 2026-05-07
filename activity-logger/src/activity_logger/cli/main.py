@@ -6,14 +6,21 @@ import sys
 
 
 def app() -> None:
-    """TUI を起動する．
+    """メインエントリーポイント．
 
-    サブコマンド "collect" が渡された場合はコレクターを起動する．
+    サブコマンド:
+        collect  コレクターを起動
+        web      Web UI を起動
+        (なし)   TUI を起動
     """
-    if len(sys.argv) > 1 and sys.argv[1] == "collect":
-        _run_collector()
-    else:
-        _run_tui()
+    cmd = sys.argv[1] if len(sys.argv) > 1 else ""
+    match cmd:
+        case "collect":
+            _run_collector()
+        case "web":
+            _run_web()
+        case _:
+            _run_tui()
 
 
 def _run_tui() -> None:
@@ -28,3 +35,9 @@ def _run_collector() -> None:
     from activity_logger.collector.main import run
 
     run()
+
+
+def _run_web() -> None:
+    from activity_logger.web.server import main as web_main
+
+    web_main()

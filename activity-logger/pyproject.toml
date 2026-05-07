@@ -12,11 +12,14 @@ dependencies = [
     "psutil>=7.2.2",
     "pywin32>=311",
     "textual>=8.2.5",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
 ]
 
 [project.scripts]
 activity-logger = "activity_logger.cli.main:app"
 activity-collector = "activity_logger.collector.main:run"
+activity-web = "activity_logger.web.server:main"
 
 [build-system]
 requires = ["uv_build>=0.11.6,<0.12.0"]
