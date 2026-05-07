@@ -6,441 +6,307 @@
   <title>Activity Logger</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: "Segoe UI", system-ui, sans-serif;
-      background: #0f0f1a;
-      color: #d4d4e0;
-      padding: 24px 32px;
-      min-height: 100vh;
+      background: #0f0f1a; color: #d4d4e0;
+      padding: 20px 28px; min-height: 100vh;
     }
 
-    /* ── ヘッダー ── */
-    .header {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      margin-bottom: 28px;
+    /* ── フィルタバー ── */
+    .filter-bar {
+      display: flex; align-items: center; gap: 10px;
+      margin-bottom: 20px; flex-wrap: wrap;
     }
-    .header h1 {
-      font-size: 1.35rem;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      color: #e8e8f0;
+    .filter-bar h1 { font-size: 1.2rem; font-weight: 600; color: #e8e8f0; margin-right: 8px; }
+    .ctrl {
+      background: #1a1a30; border: 1px solid #2a2a48; color: #c8c8d8;
+      padding: 6px 12px; border-radius: 6px; font-size: 0.85rem;
     }
-    .date-nav {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .date-nav button, .date-nav input[type=date] {
-      background: #1a1a30;
-      border: 1px solid #2a2a48;
-      color: #c8c8d8;
-      padding: 6px 14px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: background 0.15s;
-    }
-    .date-nav button:hover { background: #26264a; }
-    .date-nav input[type=date] { padding: 5px 10px; }
-    .header select {
-      background: #1a1a30;
-      border: 1px solid #2a2a48;
-      color: #c8c8d8;
-      padding: 6px 10px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
+    select.ctrl { cursor: pointer; }
+    input.ctrl { width: 180px; }
+    input.ctrl::placeholder { color: #555570; }
+    .ctrl:focus { outline: 1px solid #6366f1; border-color: #6366f1; }
     .total-badge {
       margin-left: auto;
-      background: #1e1e3a;
-      border: 1px solid #2e2e50;
-      padding: 6px 16px;
-      border-radius: 6px;
-      font-size: 0.95rem;
+      background: #1e1e3a; border: 1px solid #2e2e50;
+      padding: 6px 16px; border-radius: 6px; font-size: 0.9rem;
     }
     .total-badge strong { color: #818cf8; }
 
-    /* ── タイムライン ── */
-    .timeline-card {
-      background: #16162c;
-      border: 1px solid #222240;
-      border-radius: 10px;
-      padding: 20px 24px;
-      margin-bottom: 24px;
+    /* ── タブ切替 ── */
+    .tabs {
+      display: flex; gap: 2px; margin-bottom: 16px;
     }
-    .timeline-card h2 {
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #8888a0;
-      margin-bottom: 14px;
+    .tab {
+      background: #1a1a30; border: 1px solid #2a2a48; border-bottom: none;
+      color: #8888a0; padding: 8px 20px; border-radius: 8px 8px 0 0;
+      cursor: pointer; font-size: 0.85rem; transition: background 0.15s;
     }
-    .hour-markers {
-      position: relative;
-      height: 22px;
-      margin-bottom: 4px;
-    }
-    .hour-mark {
-      position: absolute;
-      font-size: 0.7rem;
-      color: #555570;
-      transform: translateX(-50%);
-      user-select: none;
-    }
-    .timeline-bar {
-      position: relative;
-      height: 52px;
-      background: #0c0c18;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .segment {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      min-width: 2px;
-      cursor: pointer;
-      opacity: 0.88;
-      transition: opacity 0.12s, filter 0.12s;
-      overflow: hidden;
-      line-height: 52px;
-      padding: 0 5px;
-    }
-    .seg-label {
-      font-size: 0.72rem;
-      color: #fff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      text-shadow: 0 1px 2px rgba(0,0,0,0.6);
-      pointer-events: none;
-    }
-    .segment:hover {
-      opacity: 1;
-      filter: brightness(1.2);
-      z-index: 10;
-    }
-    .grid-line {
-      position: absolute;
-      top: 0;
-      width: 1px;
-      height: 100%;
-      background: #1a1a30;
-      pointer-events: none;
-    }
-    .now-line {
-      position: absolute;
-      top: -4px;
-      width: 2px;
-      height: calc(100% + 8px);
-      background: #ef4444;
-      pointer-events: none;
-      border-radius: 1px;
-      z-index: 20;
-    }
+    .tab:hover { background: #222244; }
+    .tab.active { background: #16162c; color: #e8e8f0; border-color: #333358; }
 
-    /* ── ツールチップ ── */
-    .tooltip {
-      position: fixed;
-      background: #1e1e38;
-      border: 1px solid #3a3a5c;
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 0.82rem;
-      line-height: 1.6;
-      pointer-events: none;
-      z-index: 1000;
-      display: none;
-      max-width: 360px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    /* ── パネル共通 ── */
+    .panel {
+      background: #16162c; border: 1px solid #222240;
+      border-radius: 0 10px 10px 10px; padding: 0; display: none;
     }
-    .tooltip .exe-name {
-      font-weight: 600;
-      color: #e0e0f0;
-      font-size: 0.88rem;
-    }
-    .tooltip .title-text { color: #9090b0; }
-    .tooltip .time-text { color: #818cf8; }
+    .panel.active { display: block; }
 
-    /* ── サマリ ── */
-    .summary-card {
-      background: #16162c;
-      border: 1px solid #222240;
-      border-radius: 10px;
-      padding: 20px 24px;
-    }
-    .summary-card h2 {
-      font-size: 0.95rem;
-      font-weight: 500;
-      color: #8888a0;
-      margin-bottom: 14px;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
+    /* ── セッション一覧テーブル ── */
+    table { width: 100%; border-collapse: collapse; }
     th {
-      text-align: left;
-      padding: 8px 12px;
-      font-size: 0.78rem;
-      font-weight: 500;
-      color: #606080;
+      text-align: left; padding: 10px 14px;
+      font-size: 0.75rem; font-weight: 500; color: #606080;
       border-bottom: 1px solid #22224a;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      text-transform: uppercase; letter-spacing: 0.04em;
+      position: sticky; top: 0; background: #16162c; z-index: 2;
     }
     td {
-      padding: 10px 12px;
-      border-bottom: 1px solid #18183a;
-      font-size: 0.88rem;
+      padding: 10px 14px; border-bottom: 1px solid #18183a;
+      font-size: 0.85rem; vertical-align: top;
     }
     tr:hover td { background: #1c1c38; }
-    .color-dot {
-      display: inline-block;
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      margin-right: 10px;
-      vertical-align: middle;
+    .exe-name { font-weight: 600; color: #e0e0f0; }
+    .win-title { color: #8888a8; font-size: 0.8rem; margin-top: 2px; }
+    .mono { font-variant-numeric: tabular-nums; }
+    .scroll-wrap { max-height: 520px; overflow-y: auto; }
+
+    /* ── サマリ ── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 12px; padding: 16px;
     }
-    .bar-cell { width: 220px; }
-    .bar-bg {
-      background: #0c0c18;
-      height: 7px;
-      border-radius: 4px;
-      overflow: hidden;
+    .app-card {
+      background: #1a1a34; border: 1px solid #24244a;
+      border-radius: 8px; padding: 14px 16px;
+      display: flex; align-items: center; gap: 14px;
     }
-    .bar-fill { height: 100%; border-radius: 4px; }
+    .app-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+    .app-info { flex: 1; min-width: 0; }
+    .app-info .name { font-weight: 600; color: #e0e0f0; font-size: 0.9rem; }
+    .app-info .stats { color: #8888a8; font-size: 0.78rem; margin-top: 3px; }
+    .app-bar-bg {
+      width: 100px; height: 8px; background: #0c0c18;
+      border-radius: 4px; overflow: hidden; flex-shrink: 0;
+    }
+    .app-bar-fill { height: 100%; border-radius: 4px; }
+
+    /* ── 詳細 ── */
+    .detail-wrap { padding: 20px 24px; }
+    .detail-wrap h3 { font-size: 1rem; margin-bottom: 12px; color: #e8e8f0; }
+    .detail-grid {
+      display: grid; grid-template-columns: 140px 1fr;
+      gap: 6px 16px; font-size: 0.88rem;
+    }
+    .detail-grid dt { color: #6868888; font-weight: 500; }
+    .detail-grid dd { color: #d0d0e0; }
+    .pct-bar {
+      display: inline-block; height: 14px; border-radius: 3px;
+      vertical-align: middle; margin-left: 8px;
+    }
 
     .empty-msg {
-      text-align: center;
-      padding: 40px;
-      color: #555570;
-      font-size: 0.95rem;
+      text-align: center; padding: 48px; color: #555570; font-size: 0.95rem;
     }
   </style>
 </head>
 <body>
 
-  <div class="header">
+  <!-- フィルタバー -->
+  <div class="filter-bar">
     <h1>Activity Logger</h1>
-    <div class="date-nav">
-      <button onclick="changeDate(-1)" title="前日">&#9664;</button>
-      <input type="date" id="datePicker" onchange="loadData()">
-      <button onclick="changeDate(1)" title="翌日">&#9654;</button>
-      <button onclick="goToday()">今日</button>
-    </div>
-    <select id="minDuration" onchange="loadData()">
-      <option value="300" selected>5分以上</option>
-      <option value="600">10分以上</option>
+    <input class="ctrl" type="text" id="search" placeholder="exe名で検索..." oninput="loadData()">
+    <select class="ctrl" id="dateRange" onchange="loadData()">
+      <option value="today">今日</option>
+      <option value="this_week">今週</option>
+      <option value="this_month">今月</option>
+      <option value="all">全期間</option>
+    </select>
+    <select class="ctrl" id="minDuration" onchange="loadData()">
+      <option value="300">5分以上</option>
+      <option value="600" selected>10分以上</option>
       <option value="1800">30分以上</option>
       <option value="3600">1時間以上</option>
     </select>
     <div class="total-badge" id="totalBadge">合計: <strong>--</strong></div>
   </div>
 
-  <div class="timeline-card">
-    <h2>タイムライン</h2>
-    <div class="hour-markers" id="hourMarkers"></div>
-    <div class="timeline-bar" id="timelineBar"></div>
+  <!-- タブ -->
+  <div class="tabs">
+    <div class="tab active" data-tab="sessions">セッション一覧</div>
+    <div class="tab" data-tab="summary">アプリ別サマリ</div>
+    <div class="tab" data-tab="detail">詳細</div>
   </div>
 
-  <div class="summary-card">
-    <h2>アプリ使用サマリ</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>アプリ</th>
-          <th>アクティブ</th>
-          <th>アイドル</th>
-          <th>回数</th>
-          <th class="bar-cell">割合</th>
-        </tr>
-      </thead>
-      <tbody id="summaryBody"></tbody>
-    </table>
+  <!-- セッション一覧 -->
+  <div class="panel active" id="panel-sessions">
+    <div class="scroll-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>アプリケーション</th>
+            <th>開始</th>
+            <th>終了</th>
+            <th>アクティブ</th>
+            <th>アイドル</th>
+          </tr>
+        </thead>
+        <tbody id="sessionBody"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="tooltip" id="tooltip"></div>
+  <!-- サマリ -->
+  <div class="panel" id="panel-summary">
+    <div class="summary-grid" id="summaryGrid"></div>
+  </div>
+
+  <!-- 詳細 -->
+  <div class="panel" id="panel-detail">
+    <div class="detail-wrap" id="detailContent">
+      <p class="empty-msg">セッションをクリックしてください</p>
+    </div>
+  </div>
 
 <script>
 const $ = id => document.getElementById(id);
-const tooltip = $("tooltip");
-const picker = $("datePicker");
+let _sessions = [];
+let _summary = [];
 
 /* ── 初期化 ── */
-picker.value = todayStr();
 loadData();
 
-document.addEventListener("keydown", e => {
-  if (e.target.tagName === "INPUT") return;
-  if (e.key === "ArrowLeft")  changeDate(-1);
-  if (e.key === "ArrowRight") changeDate(1);
+/* ── タブ切替 ── */
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    $("panel-" + tab.dataset.tab).classList.add("active");
+  });
 });
 
 /* ── ユーティリティ ── */
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-}
-
 function hashColor(s) {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
   return `hsl(${Math.abs(h) % 360}, 60%, 58%)`;
 }
-
 function fmt(sec) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
-  if (h > 0) return `${h}時間${m}分`;
-  return `${m}分`;
+  const ss = Math.floor(sec % 60);
+  if (h > 0) return `${h}h${String(m).padStart(2,"0")}m`;
+  return `${m}m${String(ss).padStart(2,"0")}s`;
 }
-
 function timeStr(iso) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString("ja-JP", {
+    month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit"
+  });
 }
-
-/* ── ナビゲーション ── */
-function changeDate(delta) {
-  const d = new Date(picker.value + "T00:00:00");
-  d.setDate(d.getDate() + delta);
-  picker.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
-  loadData();
-}
-function goToday() { picker.value = todayStr(); loadData(); }
+function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
 
 /* ── データ取得 ── */
 async function loadData() {
-  const minDur = $("minDuration").value;
-  const res = await fetch(`/api/timeline?date=${picker.value}&min_duration=${minDur}`);
+  const params = new URLSearchParams({
+    date_range: $("dateRange").value,
+    min_duration: $("minDuration").value,
+    search: $("search").value,
+  });
+  const res = await fetch("/api/sessions?" + params);
   const data = await res.json();
-  renderTimeline(data.segments);
-  renderSummary(data.summary);
-
-  const total = data.summary.reduce((a, s) => a + s.total_active, 0);
+  _sessions = data.sessions;
+  _summary = data.summary;
+  renderSessions();
+  renderSummary();
+  const total = _summary.reduce((a, s) => a + s.total_active, 0);
   $("totalBadge").innerHTML = `合計: <strong>${fmt(total)}</strong>`;
 }
 
-/* ── タイムライン描画 ── */
-function renderTimeline(segments) {
-  const bar = $("timelineBar");
-  const markers = $("hourMarkers");
-  bar.innerHTML = "";
-  markers.innerHTML = "";
-
-  const DAY = 24 * 60;
-
-  /* 時間グリッド */
-  for (let h = 0; h <= 24; h++) {
-    const pct = (h / 24 * 100).toFixed(4);
-    if (h > 0 && h < 24) {
-      const line = document.createElement("div");
-      line.className = "grid-line";
-      line.style.left = pct + "%";
-      bar.appendChild(line);
-    }
-    if (h % 2 === 0) {
-      const mk = document.createElement("span");
-      mk.className = "hour-mark";
-      mk.style.left = pct + "%";
-      mk.textContent = h + ":00";
-      markers.appendChild(mk);
-    }
-  }
-
-  /* 現在時刻インジケータ（今日のみ） */
-  if (picker.value === todayStr()) {
-    const now = new Date();
-    const nowMin = now.getHours() * 60 + now.getMinutes();
-    const line = document.createElement("div");
-    line.className = "now-line";
-    line.style.left = (nowMin / DAY * 100).toFixed(4) + "%";
-    bar.appendChild(line);
-  }
-
-  /* セグメント */
-  for (const seg of segments) {
-    const s = new Date(seg.start);
-    const e = new Date(seg.end);
-    const sMin = s.getHours() * 60 + s.getMinutes();
-    const eMin = e.getHours() * 60 + e.getMinutes() || DAY;
-    const dur = Math.max(eMin - sMin, 1);
-
-    const div = document.createElement("div");
-    div.className = "segment";
-    div.style.left = (sMin / DAY * 100).toFixed(4) + "%";
-    div.style.width = (dur / DAY * 100).toFixed(4) + "%";
-    div.style.backgroundColor = hashColor(seg.executable);
-
-    /* セグメント幅が十分ならアプリ名を表示 */
-    const label = document.createElement("span");
-    label.className = "seg-label";
-    label.textContent = seg.executable.replace(/\.exe$/i, "");
-    div.appendChild(label);
-
-    div.addEventListener("mouseenter", () => {
-      tooltip.style.display = "block";
-      tooltip.innerHTML =
-        `<div class="exe-name">${esc(seg.executable)}</div>` +
-        `<div class="title-text">${esc(seg.window_title)}</div>` +
-        `<div class="time-text">${timeStr(seg.start)} ～ ${timeStr(seg.end)}</div>` +
-        `アクティブ: ${fmt(seg.active_seconds)}　アイドル: ${fmt(seg.idle_seconds)}`;
-    });
-    div.addEventListener("mousemove", e => {
-      tooltip.style.left = (e.clientX + 12) + "px";
-      tooltip.style.top  = (e.clientY + 12) + "px";
-    });
-    div.addEventListener("mouseleave", () => { tooltip.style.display = "none"; });
-
-    bar.appendChild(div);
-  }
-
-  if (segments.length === 0) {
-    const msg = document.createElement("div");
-    msg.className = "empty-msg";
-    msg.textContent = "この日のデータはありません";
-    msg.style.position = "absolute";
-    msg.style.width = "100%";
-    msg.style.top = "50%";
-    msg.style.transform = "translateY(-50%)";
-    bar.appendChild(msg);
-  }
-}
-
-/* ── サマリ描画 ── */
-function renderSummary(summary) {
-  const body = $("summaryBody");
-  body.innerHTML = "";
-
-  if (summary.length === 0) {
+/* ── セッション一覧 ── */
+function renderSessions() {
+  const body = $("sessionBody");
+  if (_sessions.length === 0) {
     body.innerHTML = '<tr><td colspan="5" class="empty-msg">データなし</td></tr>';
     return;
   }
-
-  const maxActive = Math.max(...summary.map(s => s.total_active), 1);
-
-  for (const item of summary) {
-    const color = hashColor(item.executable);
-    const pct = (item.total_active / maxActive * 100).toFixed(1);
-    const tr = document.createElement("tr");
-    tr.innerHTML =
-      `<td><span class="color-dot" style="background:${color}"></span>${esc(item.executable)}</td>` +
-      `<td>${fmt(item.total_active)}</td>` +
-      `<td>${fmt(item.total_idle)}</td>` +
-      `<td>${item.session_count}</td>` +
-      `<td class="bar-cell"><div class="bar-bg"><div class="bar-fill" style="width:${pct}%;background:${color}"></div></div></td>`;
-    body.appendChild(tr);
-  }
+  body.innerHTML = _sessions.map((s, i) => `
+    <tr style="cursor:pointer" onclick="showDetail(${i})">
+      <td>
+        <div class="exe-name">${esc(s.executable)}</div>
+        <div class="win-title">${esc(trunc(s.window_title, 60))}</div>
+      </td>
+      <td class="mono">${timeStr(s.started_at)}</td>
+      <td class="mono">${timeStr(s.ended_at)}</td>
+      <td class="mono">${fmt(s.active_seconds)}</td>
+      <td class="mono">${fmt(s.idle_seconds)}</td>
+    </tr>
+  `).join("");
 }
 
-function esc(s) {
-  const d = document.createElement("div");
-  d.textContent = s;
-  return d.innerHTML;
+function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+/* ── サマリ ── */
+function renderSummary() {
+  const grid = $("summaryGrid");
+  if (_summary.length === 0) {
+    grid.innerHTML = '<p class="empty-msg">データなし</p>';
+    return;
+  }
+  const max = Math.max(..._summary.map(s => s.total_active), 1);
+  grid.innerHTML = _summary.map(item => {
+    const color = hashColor(item.executable);
+    const pct = (item.total_active / max * 100).toFixed(1);
+    return `
+      <div class="app-card">
+        <div class="app-dot" style="background:${color}"></div>
+        <div class="app-info">
+          <div class="name">${esc(item.executable)}</div>
+          <div class="stats">
+            アクティブ ${fmt(item.total_active)}
+            アイドル ${fmt(item.total_idle)}
+            ${item.session_count}回
+          </div>
+        </div>
+        <div class="app-bar-bg">
+          <div class="app-bar-fill" style="width:${pct}%;background:${color}"></div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+/* ── 詳細 ── */
+function showDetail(idx) {
+  const s = _sessions[idx];
+  if (!s) return;
+  const total = s.active_seconds + s.idle_seconds;
+  const activePct = total > 0 ? (s.active_seconds / total * 100) : 0;
+  const color = hashColor(s.executable);
+
+  $("detailContent").innerHTML = `
+    <h3>${esc(s.executable)}</h3>
+    <dl class="detail-grid">
+      <dt>ウィンドウ</dt><dd>${esc(s.window_title)}</dd>
+      <dt>PID</dt><dd>${s.pid}</dd>
+      <dt>開始</dt><dd>${new Date(s.started_at).toLocaleString("ja-JP")}</dd>
+      <dt>終了</dt><dd>${new Date(s.ended_at).toLocaleString("ja-JP")}</dd>
+      <dt>アクティブ</dt><dd>${fmt(s.active_seconds)}</dd>
+      <dt>アイドル</dt><dd>${fmt(s.idle_seconds)}</dd>
+      <dt>アクティブ率</dt>
+      <dd>
+        ${activePct.toFixed(0)}%
+        <span class="pct-bar" style="width:${activePct.toFixed(0)}px;background:${color}"></span>
+      </dd>
+    </dl>`;
+
+  /* 詳細タブに切替 */
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelector('[data-tab="detail"]').classList.add("active");
+  $("panel-detail").classList.add("active");
 }
 </script>
 </body>

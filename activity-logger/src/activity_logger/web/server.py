@@ -1,4 +1,4 @@
-"""Web UI サーバー（ManicTime 風タイムライン）."""
+"""Web UI サーバー."""
 
 from __future__ import annotations
 
@@ -28,6 +28,25 @@ def _init() -> tuple[Database, AppConfig]:
     return _db, _config  # type: ignore[return-value]
 
 
+def _resolve_range(
+    date_range: str,
+) -> tuple[datetime | None, datetime | None]:
+    """日付レンジ名を (since, until) に変換する."""
+    now = datetime.now(JST)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    match date_range:
+        case "today":
+            return today, None
+        case "this_week":
+            return today - timedelta(days=now.weekday()), None
+        case "this_month":
+            return today.replace(day=1), None
+        case "all":
+            return None, None
+        case _:
+            return today, None
+
+
 @app.get("/", response_class=HTMLResponse)
 def index() -> HTMLResponse:
     """フロントエンド HTML を返す."""
@@ -35,38 +54,38 @@ def index() -> HTMLResponse:
     return HTMLResponse(html_path.read_text(encoding="utf-8"))
 
 
-@app.get("/api/timeline")
-def get_timeline(
-    date: str = Query(default=""),
+@app.get("/api/sessions")
+def get_sessions(
+    date_range: str = Query(default="today"),
     min_duration: int = Query(default=0),
+    search: str = Query(default=""),
 ) -> dict:
-    """指定日のタイムラインデータを返す."""
+    """セッション一覧 + サマリを返す."""
     db, config = _init()
 
-    if not date:
-        date = datetime.now(JST).strftime("%Y-%m-%d")
-
     threshold = min_duration if min_duration > 0 else config.session.min_duration_sec
-
-    day_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=JST)
-    day_end = day_start + timedelta(days=1)
+    since, until = _resolve_range(date_range)
+    excluded = config.filter.excluded_executables or None
 
     sessions = db.query_sessions(
         min_duration=threshold,
-        since=day_start,
-        until=day_end,
-        excluded_executables=config.filter.excluded_executables or None,
+        executable=search or None,
+        since=since,
+        until=until,
+        excluded_executables=excluded,
         limit=2000,
     )
 
-    segments = [
+    rows = [
         {
+            "id": s.id,
             "executable": s.executable,
             "window_title": s.window_title,
-            "start": s.started_at.isoformat(),
-            "end": (s.ended_at or datetime.now(JST)).isoformat(),
+            "started_at": s.started_at.isoformat(),
+            "ended_at": (s.ended_at or datetime.now(JST)).isoformat(),
             "active_seconds": s.active_seconds,
             "idle_seconds": s.idle_seconds,
+            "pid": s.pid,
         }
         for s in sessions
     ]
@@ -87,7 +106,7 @@ def get_timeline(
 
     summary = sorted(agg.values(), key=lambda x: x["total_active"], reverse=True)
 
-    return {"date": date, "segments": segments, "summary": summary}
+    return {"sessions": rows, "summary": summary}
 
 
 def main() -> None:
