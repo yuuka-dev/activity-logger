@@ -45,6 +45,15 @@
     }
     .date-nav button:hover { background: #26264a; }
     .date-nav input[type=date] { padding: 5px 10px; }
+    .header select {
+      background: #1a1a30;
+      border: 1px solid #2a2a48;
+      color: #c8c8d8;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
     .total-badge {
       margin-left: auto;
       background: #1e1e3a;
@@ -223,6 +232,12 @@
       <button onclick="changeDate(1)" title="翌日">&#9654;</button>
       <button onclick="goToday()">今日</button>
     </div>
+    <select id="minDuration" onchange="loadData()">
+      <option value="300" selected>5分以上</option>
+      <option value="600">10分以上</option>
+      <option value="1800">30分以上</option>
+      <option value="3600">1時間以上</option>
+    </select>
     <div class="total-badge" id="totalBadge">合計: <strong>--</strong></div>
   </div>
 
@@ -300,7 +315,8 @@ function goToday() { picker.value = todayStr(); loadData(); }
 
 /* ── データ取得 ── */
 async function loadData() {
-  const res = await fetch(`/api/timeline?date=${picker.value}`);
+  const minDur = $("minDuration").value;
+  const res = await fetch(`/api/timeline?date=${picker.value}&min_duration=${minDur}`);
   const data = await res.json();
   renderTimeline(data.segments);
   renderSummary(data.summary);

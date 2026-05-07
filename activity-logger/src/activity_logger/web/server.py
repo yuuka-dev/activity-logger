@@ -36,18 +36,23 @@ def index() -> HTMLResponse:
 
 
 @app.get("/api/timeline")
-def get_timeline(date: str = Query(default="")) -> dict:
+def get_timeline(
+    date: str = Query(default=""),
+    min_duration: int = Query(default=0),
+) -> dict:
     """指定日のタイムラインデータを返す."""
     db, config = _init()
 
     if not date:
         date = datetime.now(JST).strftime("%Y-%m-%d")
 
+    threshold = min_duration if min_duration > 0 else config.session.min_duration_sec
+
     day_start = datetime.strptime(date, "%Y-%m-%d").replace(tzinfo=JST)
     day_end = day_start + timedelta(days=1)
 
     sessions = db.query_sessions(
-        min_duration=config.session.min_duration_sec,
+        min_duration=threshold,
         since=day_start,
         until=day_end,
         excluded_executables=config.filter.excluded_executables or None,
