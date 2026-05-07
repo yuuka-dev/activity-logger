@@ -47,7 +47,7 @@ def get_timeline(date: str = Query(default="")) -> dict:
     day_end = day_start + timedelta(days=1)
 
     sessions = db.query_sessions(
-        min_duration=0,
+        min_duration=config.session.min_duration_sec,
         since=day_start,
         until=day_end,
         excluded_executables=config.filter.excluded_executables or None,
