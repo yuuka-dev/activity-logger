@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime
 from enum import Enum, auto
+from zoneinfo import ZoneInfo
+
+JST = ZoneInfo("Asia/Tokyo")
 
 
 class SessionState(Enum):
@@ -16,7 +19,7 @@ class SessionState(Enum):
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return datetime.now(JST)
 
 
 @dataclass

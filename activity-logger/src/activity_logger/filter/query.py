@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from activity_logger.storage.database import Database, SessionRecord
+
+JST = ZoneInfo("Asia/Tokyo")
 
 
 @dataclass
@@ -65,7 +68,7 @@ class SessionFilter:
 
 def _resolve_date_range(name: str) -> tuple[datetime | None, datetime | None]:
     """日付レンジ名を (since, until) に変換する."""
-    now = datetime.now(UTC)
+    now = datetime.now(JST)
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     match name:
         case "today":

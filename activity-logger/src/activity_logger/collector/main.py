@@ -5,13 +5,15 @@ from __future__ import annotations
 import logging
 import signal
 import time
-from datetime import UTC, datetime
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from activity_logger.collector.poller import get_foreground_window_info, get_idle_seconds
 from activity_logger.collector.session import Session
 from activity_logger.config import AppConfig
 from activity_logger.storage.database import Database, SessionRecord
 
+JST = ZoneInfo("Asia/Tokyo")
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +37,7 @@ class Collector:
             executable=session.executable,
             window_title=session.window_title,
             started_at=session.started_at,
-            ended_at=datetime.now(UTC),
+            ended_at=datetime.now(JST),
             active_seconds=session.active_seconds,
             idle_seconds=session.idle_seconds,
             pid=session.pid,
