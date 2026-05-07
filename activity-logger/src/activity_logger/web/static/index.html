@@ -108,6 +108,58 @@
       vertical-align: middle; margin-left: 8px;
     }
 
+    /* ── タイムライン ── */
+    .tl-wrap { padding: 20px 24px; }
+    .hour-markers {
+      position: relative; height: 22px; margin-bottom: 4px;
+    }
+    .hour-mark {
+      position: absolute; font-size: 0.7rem; color: #555570;
+      transform: translateX(-50%); user-select: none;
+    }
+    .timeline-bar {
+      position: relative; height: 52px;
+      background: #0c0c18; border-radius: 6px; overflow: hidden;
+    }
+    .tl-seg {
+      position: absolute; top: 0; bottom: 0;
+      min-width: 2px; cursor: pointer;
+      opacity: 0.88; transition: opacity 0.12s, filter 0.12s;
+      overflow: hidden; line-height: 52px; padding: 0 5px;
+    }
+    .tl-seg:hover { opacity: 1; filter: brightness(1.2); z-index: 10; }
+    .tl-seg .seg-label {
+      font-size: 0.72rem; color: #fff; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.6); pointer-events: none;
+    }
+    .grid-line {
+      position: absolute; top: 0; width: 1px; height: 100%;
+      background: #1a1a30; pointer-events: none;
+    }
+    .now-line {
+      position: absolute; top: -4px; width: 2px; height: calc(100% + 8px);
+      background: #ef4444; pointer-events: none; border-radius: 1px; z-index: 20;
+    }
+    .tl-tooltip {
+      position: fixed; background: #1e1e38; border: 1px solid #3a3a5c;
+      padding: 10px 14px; border-radius: 8px; font-size: 0.82rem;
+      line-height: 1.6; pointer-events: none; z-index: 1000;
+      display: none; max-width: 360px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .tl-tooltip .t-exe { font-weight: 600; color: #e0e0f0; font-size: 0.88rem; }
+    .tl-tooltip .t-title { color: #9090b0; }
+    .tl-tooltip .t-time { color: #818cf8; }
+    .tl-legend {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px;
+    }
+    .tl-legend-item {
+      display: flex; align-items: center; gap: 6px; font-size: 0.78rem; color: #a0a0b8;
+    }
+    .tl-legend-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
     .empty-msg {
       text-align: center; padding: 48px; color: #555570; font-size: 0.95rem;
     }
@@ -138,6 +190,7 @@
   <div class="tabs">
     <div class="tab active" data-tab="sessions">セッション一覧</div>
     <div class="tab" data-tab="summary">アプリ別サマリ</div>
+    <div class="tab" data-tab="timeline">タイムライン</div>
     <div class="tab" data-tab="detail">詳細</div>
   </div>
 
@@ -163,6 +216,16 @@
   <div class="panel" id="panel-summary">
     <div class="summary-grid" id="summaryGrid"></div>
   </div>
+
+  <!-- タイムライン -->
+  <div class="panel" id="panel-timeline">
+    <div class="tl-wrap">
+      <div class="hour-markers" id="hourMarkers"></div>
+      <div class="timeline-bar" id="timelineBar"></div>
+      <div class="tl-legend" id="tlLegend"></div>
+    </div>
+  </div>
+  <div class="tl-tooltip" id="tlTooltip"></div>
 
   <!-- 詳細 -->
   <div class="panel" id="panel-detail">
@@ -222,6 +285,7 @@ async function loadData() {
   _summary = data.summary;
   renderSessions();
   renderSummary();
+  renderTimeline();
   const total = _summary.reduce((a, s) => a + s.total_active, 0);
   $("totalBadge").innerHTML = `合計: <strong>${fmt(total)}</strong>`;
 }
@@ -276,6 +340,102 @@ function renderSummary() {
         </div>
       </div>`;
   }).join("");
+}
+
+/* ── タイムライン ── */
+function renderTimeline() {
+  const bar = $("timelineBar");
+  const markers = $("hourMarkers");
+  const legend = $("tlLegend");
+  const tip = $("tlTooltip");
+  bar.innerHTML = "";
+  markers.innerHTML = "";
+  legend.innerHTML = "";
+
+  const DAY = 24 * 60;
+
+  /* 時間グリッド + マーカー */
+  for (let h = 0; h <= 24; h++) {
+    const pct = (h / 24 * 100).toFixed(4) + "%";
+    if (h > 0 && h < 24) {
+      const line = document.createElement("div");
+      line.className = "grid-line";
+      line.style.left = pct;
+      bar.appendChild(line);
+    }
+    if (h % 2 === 0) {
+      const mk = document.createElement("span");
+      mk.className = "hour-mark";
+      mk.style.left = pct;
+      mk.textContent = h + ":00";
+      markers.appendChild(mk);
+    }
+  }
+
+  /* 現在時刻（今日のみ） */
+  if ($("dateRange").value === "today") {
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const nl = document.createElement("div");
+    nl.className = "now-line";
+    nl.style.left = (nowMin / DAY * 100).toFixed(4) + "%";
+    bar.appendChild(nl);
+  }
+
+  if (_sessions.length === 0) {
+    const msg = document.createElement("div");
+    msg.className = "empty-msg";
+    msg.style.cssText = "position:absolute;width:100%;top:50%;transform:translateY(-50%);padding:0";
+    msg.textContent = "データなし";
+    bar.appendChild(msg);
+    return;
+  }
+
+  /* セグメント */
+  const exeSet = new Set();
+  for (const seg of _sessions) {
+    const s = new Date(seg.started_at);
+    const e = new Date(seg.ended_at);
+    const sMin = s.getHours() * 60 + s.getMinutes();
+    const eMin = e.getHours() * 60 + e.getMinutes() || DAY;
+    const dur = Math.max(eMin - sMin, 1);
+    const color = hashColor(seg.executable);
+    exeSet.add(seg.executable);
+
+    const div = document.createElement("div");
+    div.className = "tl-seg";
+    div.style.left = (sMin / DAY * 100).toFixed(4) + "%";
+    div.style.width = (dur / DAY * 100).toFixed(4) + "%";
+    div.style.backgroundColor = color;
+
+    const lbl = document.createElement("span");
+    lbl.className = "seg-label";
+    lbl.textContent = seg.executable.replace(/\.exe$/i, "");
+    div.appendChild(lbl);
+
+    div.addEventListener("mouseenter", () => {
+      tip.style.display = "block";
+      tip.innerHTML =
+        `<div class="t-exe">${esc(seg.executable)}</div>` +
+        `<div class="t-title">${esc(seg.window_title)}</div>` +
+        `<div class="t-time">${timeStr(seg.started_at)} ~ ${timeStr(seg.ended_at)}</div>` +
+        `アクティブ: ${fmt(seg.active_seconds)}　アイドル: ${fmt(seg.idle_seconds)}`;
+    });
+    div.addEventListener("mousemove", ev => {
+      tip.style.left = (ev.clientX + 12) + "px";
+      tip.style.top  = (ev.clientY + 12) + "px";
+    });
+    div.addEventListener("mouseleave", () => { tip.style.display = "none"; });
+    bar.appendChild(div);
+  }
+
+  /* 凡例 */
+  for (const exe of exeSet) {
+    const item = document.createElement("div");
+    item.className = "tl-legend-item";
+    item.innerHTML = `<span class="tl-legend-dot" style="background:${hashColor(exe)}"></span>${esc(exe)}`;
+    legend.appendChild(item);
+  }
 }
 
 /* ── 詳細 ── */
