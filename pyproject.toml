@@ -1,0 +1,53 @@
+[project]
+name = "activity-logger"
+version = "0.1.0"
+description = "閾値フィルタ付き Windows アクティビティロガー"
+readme = "README.md"
+requires-python = ">=3.12"
+authors = [
+    { name = "Proletariat Yuuka", email = "sounyan.is.the.angel@gmail.com"}
+]
+dependencies = [
+    "pywin32>=306",
+    "psutil>=5.9",
+    "textual>=0.80",
+    "platformdirs>=4.9.6",
+]
+[project.scripts]
+activity-logger = "activity_logger.cli.main:app"
+activity-collector = "activity_logger.collector.main:run"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.6",
+    "pydeps>=1.12",
+    "import-linter>=2.0",
+    "snakeviz>=2.2",
+    "pytest>=8.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP", "B", "SIM"]
+
+[tool.importlinter]
+root_package = "activity_logger"
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture"
+type = "layers"
+layers = [
+    "activity_logger.cli",
+    "activity_logger.tui",
+    "activity_logger.filter",
+    "activity_logger.storage",
+    "activity_logger.collector",
+]
+
+[tool.uv.workspace]
+members = [
+    "activity-logger/activity-logger",
+]
